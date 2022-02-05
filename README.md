@@ -38,3 +38,4 @@ timpack --bpp=4 \ # 4 for 16 colour, 8 for 256 colour
 - support semitransparent mode, currently STP is forced 1
 - support 15 and 24 bit direct colour modes
 - SDL viewer for debug?
+- specify VRAM destination coords

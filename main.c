@@ -42,8 +42,8 @@ static error_t ParseOpts(int key, char *arg, struct argp_state *state)
 
 			psArgs->ePixFmt = (
 				*arg == '4' ?
-				TIM_PIX_FMT_4BPP :
-				TIM_PIX_FMT_8BPP
+				TIM_PIX_FMT_4BIT_CLUT :
+				TIM_PIX_FMT_8BIT_CLUT
 			);
 			break;
 		}
@@ -85,7 +85,7 @@ int main (int argc, char * argv[])
 {
 	// Default args
 	TIM_ARGS sArgs;
-	sArgs.ePixFmt = TIM_PIX_FMT_4BPP;
+	sArgs.ePixFmt = TIM_PIX_FMT_4BIT_CLUT;
 	sArgs.pszTextureFileName = NULL;
 	sArgs.pszPaletteFileName = NULL;
 	sArgs.pszOutputFileName = NULL;

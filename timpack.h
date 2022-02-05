@@ -1,12 +1,7 @@
 #ifndef TIMPACK_H
 #define TIMPACK_H
 
-typedef enum _TIM_PIX_FMT
-{
-	TIM_PIX_FMT_4BPP,
-	TIM_PIX_FMT_8BPP,
-	TIM_PIX_FMT_COUNT
-} TIM_PIX_FMT;
+#include "timdefs.h"
 
 int PackTIM(
 	const TIM_PIX_FMT ePixFmt,
