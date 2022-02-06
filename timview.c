@@ -25,36 +25,155 @@ static R8G8B8A8 TIMPixToRGBA8(const TIM_PIX* psPix)
 	return sPix;
 }
 
-static int DecodeTIMPixelData(
+static int DecodeTIMPixelDataWithPalette(
 	const TIM_FILE* psFile,
-	uint32_t** ppui32PixelData)
+	const uint32_t ui32PaletteIndex,
+	R8G8B8A8* pui32PixelData)
 {
+	// TODO: check file
+	// TODO: check ui32PaletteIndex < psFile->sCLUTHeader.ui16Height
+	// TODO: check pixel data
+
 	const uint32_t ui32NumPixels = (
 		psFile->sPixelHeader.ui16Width * psFile->sPixelHeader.ui16Height
 	);
 
-	R8G8B8A8* pui32PixelData = calloc(ui32NumPixels, sizeof(R8G8B8A8));
-	uint8_t ui8PaletteIndex;
+	uint8_t ui8ColourIndex;
+	const uint32_t ui32PaletteOffset = ui32PaletteIndex * psFile->sCLUTHeader.ui16Width;
 	for (uint32_t i = 0; i < ui32NumPixels; ++i)
 	{
 		if (psFile->sFileHeader.sFlags.uMode == TIM_PIX_FMT_4BIT_CLUT)
 		{
-			ui8PaletteIndex = psFile->pui8PixelData[i / 2];
-			ui8PaletteIndex >>= ((i % 2) ? 4 : 0);
+			ui8ColourIndex = psFile->pui8PixelData[i / 2];
+			if (i % 2)
+			{
+				ui8ColourIndex = ((ui8ColourIndex & 0xF0) >> 4);
+
+			}
+			else
+			{
+				ui8ColourIndex = ui8ColourIndex & 0x0F;
+			}
 		}
 		else
 		{
-			ui8PaletteIndex = psFile->pui8PixelData[i];
+			ui8ColourIndex = psFile->pui8PixelData[i];
 		}
 
-		pui32PixelData[i] = TIMPixToRGBA8(&psFile->psCLUTData[ui8PaletteIndex]);
+		pui32PixelData[i] = TIMPixToRGBA8(
+			&psFile->psCLUTData[ui32PaletteOffset + ui8ColourIndex]
+		);
 	}
-
-	*ppui32PixelData = (uint32_t*)pui32PixelData;
 
 	return 0;
 }
 
+static int RenderTIM(const TIM_FILE* psFile)
+{
+	// TODO: check TIM
+	printf(
+		"creating %u x %u window\n",
+		psFile->sPixelHeader.ui16Width,
+		psFile->sPixelHeader.ui16Height
+	);
+
+	SDL_Window* pWindow = SDL_CreateWindow(
+		"timview",
+		SDL_WINDOWPOS_UNDEFINED,
+		SDL_WINDOWPOS_UNDEFINED,
+		psFile->sPixelHeader.ui16Width,
+		psFile->sPixelHeader.ui16Height,
+		SDL_WINDOW_SHOWN
+	);
+
+	if (pWindow == NULL)
+	{
+		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+		return 1;
+	}
+
+	SDL_Surface* pScreenSurface = SDL_GetWindowSurface(pWindow);
+	if (pScreenSurface == NULL)
+	{
+		printf("screen surface could not be created! SDL_Error: %s\n", SDL_GetError());
+		goto FAILED_GetWindowSurface;
+	}
+
+	SDL_Surface* pTIMSurface = SDL_CreateRGBSurface(
+		0,
+		psFile->sPixelHeader.ui16Width,
+		psFile->sPixelHeader.ui16Height,
+		32,
+		// component masks
+		0x000000ff,
+		0x0000ff00,
+		0x00ff0000,
+		0xff000000
+	);
+
+	if (pTIMSurface == NULL)
+	{
+		printf("surface could not be created! SDL_Error: %s\n", SDL_GetError());
+		goto FAILED_CreateTIMSurface;
+	}
+
+	R8G8B8A8* psPixels = (R8G8B8A8*)pTIMSurface->pixels;
+	uint32_t ui32PaletteIndex = 0;
+	if (DecodeTIMPixelDataWithPalette(psFile, ui32PaletteIndex, psPixels) != 0)
+	{
+		printf("Failed to get pixel data from TIM\n");
+		goto FAILED_DecodePalette;
+	}
+
+	SDL_BlitSurface(pTIMSurface, NULL, pScreenSurface, NULL);
+	SDL_UpdateWindowSurface(pWindow);
+
+	{
+		SDL_Event sEvent;
+		bool bQuit = false;
+		while (!bQuit)
+		{
+			while (SDL_PollEvent(&sEvent))
+			{
+				if (sEvent.type == SDL_QUIT)
+				{
+					bQuit = true;
+				}
+
+				if (sEvent.type == SDL_KEYDOWN)
+				{
+					ui32PaletteIndex = (
+						(ui32PaletteIndex + 1) % psFile->sCLUTHeader.ui16Height
+					);
+
+					if (DecodeTIMPixelDataWithPalette(psFile, ui32PaletteIndex, psPixels) != 0)
+					{
+						printf("Failed to get pixel data from TIM\n");
+						goto FAILED_DecodePalette;
+					}
+
+					SDL_BlitSurface(pTIMSurface, NULL, pScreenSurface, NULL);
+					SDL_UpdateWindowSurface(pWindow);
+				}
+			}
+		}
+	}
+
+	SDL_FreeSurface(pTIMSurface);
+	SDL_FreeSurface(pScreenSurface);
+	SDL_DestroyWindow(pWindow);
+
+	return 0;
+
+FAILED_DecodePalette:
+	SDL_FreeSurface(pTIMSurface);
+FAILED_CreateTIMSurface:
+	SDL_FreeSurface(pScreenSurface);
+FAILED_GetWindowSurface:
+	SDL_DestroyWindow(pWindow);
+
+	return 1;
+}
 
 int main (int argc, char * argv[])
 {
@@ -68,106 +187,28 @@ int main (int argc, char * argv[])
 
 	if (ReadTIM(argv[1], &sFile) != 0)
 	{
-		goto FAILED_Render;
+		return 1;
 	}
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-		goto FAILED_Render;
+		goto FAILED_SDL_Init;
 	}
 
-	printf(
-		"creating %u x %u window\n",
-		sFile.sPixelHeader.ui16Width,
-		sFile.sPixelHeader.ui16Height
-	);
-
-	SDL_Window* pWindow = SDL_CreateWindow(
-		"timview",
-		SDL_WINDOWPOS_UNDEFINED,
-		SDL_WINDOWPOS_UNDEFINED,
-		sFile.sPixelHeader.ui16Width,
-		sFile.sPixelHeader.ui16Height,
-		SDL_WINDOW_SHOWN
-	);
-
-	if (pWindow == NULL)
+	if (RenderTIM(&sFile) != 0)
 	{
-		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-		goto FAILED_Render;
+		goto FAILED_RenderTIM;
 	}
-
-	SDL_Surface* pScreenSurface = SDL_GetWindowSurface(pWindow);
-	if (pScreenSurface == NULL)
-	{
-		printf("screen surface could not be created! SDL_Error: %s\n", SDL_GetError());
-		goto FAILED_Render;
-	}
-
-	uint32_t* pui32PixelData = NULL;
-	if (DecodeTIMPixelData(&sFile, &pui32PixelData) != 0)
-	{
-		printf("Failed to get pixel data from TIM\n");
-		goto FAILED_Render;
-	}
-
-	SDL_Surface* pTIMSurface = SDL_CreateRGBSurfaceFrom(
-		pui32PixelData,
-		sFile.sPixelHeader.ui16Width,
-		sFile.sPixelHeader.ui16Height,
-		32,
-		4 * sFile.sPixelHeader.ui16Width, // pitch
-		// component masks
-		0x000000ff,
-		0x0000ff00,
-		0x00ff0000,
-		0xff000000
-	);
-
-	if (pTIMSurface == NULL)
-	{
-		printf("surface could not be created! SDL_Error: %s\n", SDL_GetError());
-		goto FAILED_Render;
-	}
-
-	SDL_BlitSurface(pTIMSurface, NULL, pScreenSurface, NULL);
-
-	SDL_UpdateWindowSurface(pWindow);
-
-	SDL_Event e;
-	bool bQuit = false;
-	while (!bQuit)
-	{
-		while (SDL_PollEvent(&e))
-		{
-			if (e.type == SDL_QUIT){
-			bQuit = true;
-			}
-			if (e.type == SDL_KEYDOWN){
-			bQuit = true;
-			}
-			if (e.type == SDL_MOUSEBUTTONDOWN){
-			bQuit = true;
-			}
-		}
-	}
-
-	SDL_FreeSurface(pScreenSurface);
-
-	free(pui32PixelData);
-
-	SDL_FreeSurface(pTIMSurface);
-
-	SDL_DestroyWindow(pWindow);
 
 	SDL_Quit();
-
 	DestroyTIM(&sFile);
 
 	return 0;
 
-FAILED_Render:
+FAILED_RenderTIM:
+	SDL_Quit();
+FAILED_SDL_Init:
 	DestroyTIM(&sFile);
 
 	return 1;
