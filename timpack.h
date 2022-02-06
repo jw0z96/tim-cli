@@ -1,7 +1,7 @@
 #ifndef TIMPACK_H
 #define TIMPACK_H
 
-#include "timdefs.h"
+#include "tim_defs.h"
 
 int PackTIM(
 	const TIM_PIX_FMT ePixFmt,

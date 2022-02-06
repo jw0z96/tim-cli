@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "timdefs.h"
+#include "tim_defs.h"
 #include "timpack.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -106,6 +106,15 @@ static int LoadPalette(
 			printf("failed to allocate palette data\n");
 			goto FAILED_LoadPalette;
 		}
+
+		printf(
+			"allocated %lu bytes for CLUT data block\n",
+			(
+				psCLUTHeader->ui16Width *
+				psCLUTHeader->ui16Height *
+				sizeof(TIM_PIX)
+			)
+		);
 
 		// Set the size of the CLUT data block, which includes the header
 		psCLUTHeader->ui32SizeInBytes = (
@@ -219,6 +228,8 @@ static int LoadTexture(
 		goto FAILED_LoadTexture;
 	}
 
+	printf("allocating %u bytes for the Pixel data\n", ui32AllocationSize);
+
 	// Set the size of the pixel data block, which includes the header
 	psPixelHeader->ui32SizeInBytes = (
 		ui32AllocationSize + sizeof(TIM_BLOCK_HEADER)
@@ -294,44 +305,6 @@ static int LoadTexture(
 FAILED_LoadTexture:
 	stbi_image_free(pui8Image);
 	return 1;
-}
-
-static int WriteTIM(
-	const char* pszOutputFileName,
-	const TIM_FILE* psFile)
-{
-	FILE *fFilePtr = fopen(pszOutputFileName, "wb");
-
-	// Write header
-	fwrite(&psFile->sFileHeader, sizeof(TIM_FILE_HEADER), 1, fFilePtr);
-
-	// Write CLUT block
-	fwrite(&psFile->sCLUTHeader, sizeof(TIM_BLOCK_HEADER), 1, fFilePtr);
-	fwrite(
-		psFile->psCLUTData,
-		(psFile->sCLUTHeader.ui32SizeInBytes - sizeof(TIM_BLOCK_HEADER)),
-		1,
-		fFilePtr
-	);
-
-	// Write pixel block
-	fwrite(&psFile->sPixelHeader, sizeof(TIM_BLOCK_HEADER), 1, fFilePtr);
-	fwrite(
-		psFile->pui8PixelData,
-		(psFile->sPixelHeader.ui32SizeInBytes - sizeof(TIM_BLOCK_HEADER)),
-		1,
-		fFilePtr
-	);
-
-	fclose(fFilePtr);
-
-	return 0;
-}
-
-static void DestroyTIM(TIM_FILE* psFile)
-{
-	if (psFile->psCLUTData) { free(psFile->psCLUTData); }
-	if (psFile->pui8PixelData) { free(psFile->pui8PixelData); }
 }
 
 int PackTIM(

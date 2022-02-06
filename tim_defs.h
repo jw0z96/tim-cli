@@ -60,4 +60,12 @@ typedef struct _TIM_FILE
 	uint8_t* pui8PixelData;
 } TIM_FILE;
 
+int WriteTIM(const char* pszOutputFileName, const TIM_FILE* psFile);
+
+int ReadTIM(const char* pszInputFileName, TIM_FILE* psFile);
+
+void DestroyTIM(TIM_FILE* psFile);
+
+// int DecodeTIMPixelData(const TIM_FILE* psFile, uint32_t** ppui32PixelData);
+
 #endif // TIMDEFS_H
