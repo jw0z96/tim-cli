@@ -30,12 +30,14 @@ Please ensure that the generated palette image contains the correct number of co
 ```bash
 timpack --bpp=4 \ # 4 for 16 colour, 8 for 256 colour
 	--texture=<texture file> \
+	--texture-x=<X coordinate> \ # Texture destination X coordinate in VRAM
+	--texture-y=<Y coordinate> \ # Texture destination Y coordinate in VRAM
 	--palette=<palette file> \
+	--palette-x=<X coordinate> \ # Palette destination X coordinate in VRAM
+	--palette-y=<Y coordinate> \ # Palette destination Y coordinate in VRAM
 	<output TIM file>
 ```
 ## TODO
 
 - support semitransparent mode, currently STP is forced 1
 - support 15 and 24 bit direct colour modes
-- SDL viewer for debug?
-- specify VRAM destination coords
