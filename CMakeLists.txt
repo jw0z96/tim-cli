@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(timtools)
+project(tim-cli)
 
 add_library(tim_io_lib STATIC tim_io_utils.c)
 

@@ -1,6 +1,10 @@
+# tim-cli
+
+A small collection of command line tooling for creating and viewing TIM image files, as used on the Sony Playstation.
+
 # timpack
 
-Packs texture data and palette data into the TIM file format, for use on the Sony Playstation.
+Packs texture data and palette data into the TIM file format.
 
 ## Usage
 
@@ -37,6 +41,23 @@ timpack --bpp=4 \ # 4 for 16 colour, 8 for 256 colour
 	--palette-y=<Y coordinate> \ # Palette destination Y coordinate in VRAM
 	<output TIM file>
 ```
+## TODO
+
+- support semitransparent mode, currently STP is forced 1
+- support 15 and 24 bit direct colour modes
+
+# timview
+
+SDL-based viewer for TIM files.
+
+## Usage
+
+```bash
+timview <TIM file>
+```
+
+If multiple palettes are present, pressing any key will cycle through each CLUT.
+
 ## TODO
 
 - support semitransparent mode, currently STP is forced 1
