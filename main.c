@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <argp.h>
 
@@ -11,19 +12,15 @@ static char szArgDoc[] = "OUTPUT_FILE";
 
 /* The options we understand. */
 static struct argp_option sOptions[] = {
-  { "bpp",		'b',	"<bits>",	0,	"Bits per pixel (4 for 16 colour, 8 for 256 colour)" },
-  { "texture",	't',	"FILE",		0,	"Texture file" },
-  { "palette",	'p',	"FILE",		0,	"Palette file" },
-  { 0 }
+	{ "bpp",		'b',	"<bits>",			0,	"Bits per pixel (4 for 16 colour, 8 for 256 colour)" },
+	{ "texture",	't',	"FILE",				0,	"Texture file" },
+	{ "texture-x",	'x',	"<X coordinate>",	0,	"Texture destination X coordinate in VRAM" },
+	{ "texture-y",	'y',	"<Y coordinate>",	0,	"Texture destination Y coordinate in VRAM" },
+	{ "palette",	'p',	"FILE",				0,	"Palette file" },
+	{ "palette-x",	'i',	"<X coordinate>",	0,	"Palette destination X coordinate in VRAM" },
+	{ "palette-y",	'j',	"<Y coordinate>",	0,	"Palette destination Y coordinate in VRAM" },
+	{ 0 }
 };
-
-typedef struct _TIM_ARGS
-{
-	TIM_PIX_FMT ePixFmt;
-	char* pszTextureFileName;
-	char* pszPaletteFileName;
-	char* pszOutputFileName;
-} TIM_ARGS;
 
 /* Parse a single option. */
 static error_t ParseOpts(int key, char *arg, struct argp_state *state)
@@ -50,7 +47,15 @@ static error_t ParseOpts(int key, char *arg, struct argp_state *state)
 
 		case 't': psArgs->pszTextureFileName = arg; break;
 
+		case 'x': psArgs->ui16TextureCoordX = strtol(arg, NULL, 10); break;
+
+		case 'y': psArgs->ui16TextureCoordY = strtol(arg, NULL, 10); break;
+
 		case 'p': psArgs->pszPaletteFileName = arg; break;
+
+		case 'i': psArgs->ui16PaletteCoordX = strtol(arg, NULL, 10); break;
+
+		case 'j': psArgs->ui16PaletteCoordY = strtol(arg, NULL, 10); break;
 
 		case ARGP_KEY_ARG:
 		{
@@ -87,7 +92,11 @@ int main (int argc, char * argv[])
 	TIM_ARGS sArgs;
 	sArgs.ePixFmt = TIM_PIX_FMT_4BIT_CLUT;
 	sArgs.pszTextureFileName = NULL;
+	sArgs.ui16TextureCoordX = 0;
+	sArgs.ui16TextureCoordY = 0;
 	sArgs.pszPaletteFileName = NULL;
+	sArgs.ui16PaletteCoordX = 0;
+	sArgs.ui16PaletteCoordY = 0;
 	sArgs.pszOutputFileName = NULL;
 
 	argp_parse(&sArgp, argc, argv, 0, 0, &sArgs);
@@ -105,6 +114,18 @@ int main (int argc, char * argv[])
 		return 1;
 	}
 
+#define RETURN_IF_INVALID_COORD(coord, dim, fmt) do { if (coord >= dim) { \
+		printf("%s coordinate must be in the range [0, %u], (%hu provided)\n", fmt, (dim - 1), coord); \
+		return 1; \
+	} } while (0)
+
+	RETURN_IF_INVALID_COORD(sArgs.ui16TextureCoordX, PSX_VRAM_WIDTH, "Texture X");
+	RETURN_IF_INVALID_COORD(sArgs.ui16TextureCoordY, PSX_VRAM_HEIGHT, "Texture Y");
+	RETURN_IF_INVALID_COORD(sArgs.ui16PaletteCoordX, PSX_VRAM_WIDTH, "Palette X");
+	RETURN_IF_INVALID_COORD(sArgs.ui16PaletteCoordY, PSX_VRAM_HEIGHT, "Palette Y");
+
+#undef RETURN_IF_INVALID_COORD
+
 	if (sArgs.pszOutputFileName == NULL)
 	{
 		printf("Output File Name Invalid\n");
@@ -112,10 +133,5 @@ int main (int argc, char * argv[])
 	}
 
 	// ready to sail?
-	return PackTIM(
-		sArgs.ePixFmt,
-		sArgs.pszTextureFileName,
-		sArgs.pszPaletteFileName,
-		sArgs.pszOutputFileName
-	);
+	return PackTIM(&sArgs);
 }

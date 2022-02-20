@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define PSX_VRAM_WIDTH (1024)
+#define PSX_VRAM_HEIGHT (512)
+
 #define TIM_FILE_HEADER_ID (0x10)
 
 typedef enum _TIM_PIX_FMT

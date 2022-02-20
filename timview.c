@@ -70,13 +70,6 @@ static int DecodeTIMPixelDataWithPalette(
 
 static int RenderTIM(const TIM_FILE* psFile)
 {
-	// TODO: check TIM
-	printf(
-		"creating %u x %u window\n",
-		psFile->sPixelHeader.ui16Width,
-		psFile->sPixelHeader.ui16Height
-	);
-
 	SDL_Window* pWindow = SDL_CreateWindow(
 		"timview",
 		SDL_WINDOWPOS_UNDEFINED,
@@ -127,6 +120,32 @@ static int RenderTIM(const TIM_FILE* psFile)
 
 	SDL_BlitSurface(pTIMSurface, NULL, pScreenSurface, NULL);
 	SDL_UpdateWindowSurface(pWindow);
+
+	// TODO: stick in header
+	static const char* apszTIMFmtStr[] = {
+		"4 BIT CLUT",
+		"8 BIT CLUT",
+		"1 5BIT DIRECT",
+		"2 4BIT DIRECT",
+	};
+
+	printf(
+		"Rendering TIM File:\n"
+		"\tPalette Format: %s\n"
+		"\tPalette Dimensions: %hu, %hu\n"
+		"\tPalette FB Coord: %hu, %hu\n"
+		"\tTexture Dimensions: %hu, %hu\n"
+		"\tTexture FB Coord: %hu, %hu\n",
+		apszTIMFmtStr[psFile->sFileHeader.sFlags.uMode],
+		psFile->sCLUTHeader.ui16Width,
+		psFile->sCLUTHeader.ui16Height,
+		psFile->sCLUTHeader.ui16FBCoordX,
+		psFile->sCLUTHeader.ui16FBCoordY,
+		psFile->sPixelHeader.ui16Width,
+		psFile->sPixelHeader.ui16Height,
+		psFile->sPixelHeader.ui16FBCoordX,
+		psFile->sPixelHeader.ui16FBCoordY
+	);
 
 	{
 		SDL_Event sEvent;

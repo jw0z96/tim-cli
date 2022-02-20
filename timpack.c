@@ -37,6 +37,8 @@ static void RGB8ToTIMPix(
 static int LoadPalette(
 	const char* pszFileName,
 	const TIM_PIX_FMT ePixFmt,
+	const uint16_t ui16FBCoordX,
+	const uint16_t ui16FBCoordY,
 	TIM_BLOCK_HEADER* psCLUTHeader,
 	TIM_PIX** ppsCLUTData)
 {
@@ -88,9 +90,9 @@ static int LoadPalette(
 	);
 
 	// Set the destination coordinates for the CLUT data within VRAM
-	// TODO: Make this a parameter
-	psCLUTHeader->ui16FBCoordX = 320;
-	psCLUTHeader->ui16FBCoordY = 0;
+	// TODO: Check this against the width/height to make sure we don't overflow
+	psCLUTHeader->ui16FBCoordX = ui16FBCoordX;
+	psCLUTHeader->ui16FBCoordY = ui16FBCoordY;
 
 	// Copy the pixel data, whilst converting it to 15 bit colour
 	{
@@ -171,6 +173,8 @@ static bool CompareTIMPix(const TIM_PIX* psA, const TIM_PIX* psB)
 static int LoadTexture(
 	const char* pszFileName,
 	const TIM_PIX_FMT ePixFmt,
+	const uint16_t ui16FBCoordX,
+	const uint16_t ui16FBCoordY,
 	const TIM_PIX* psPaletteColours,
 	TIM_BLOCK_HEADER* psPixelHeader,
 	uint8_t** ppui8PixelData)
@@ -236,9 +240,9 @@ static int LoadTexture(
 	);
 
 	// Set the destination coordinates for the pixel data within VRAM
-	// TODO: Make this a parameter
-	psPixelHeader->ui16FBCoordX = 320;
-	psPixelHeader->ui16FBCoordY = 240;
+	// TODO: Check this against the width/height to make sure we don't overflow
+	psPixelHeader->ui16FBCoordX = ui16FBCoordX;
+	psPixelHeader->ui16FBCoordY = ui16FBCoordY;
 
 	psPixelHeader->ui16Width = iWidth;
 	psPixelHeader->ui16Height = iHeight;
@@ -307,11 +311,7 @@ FAILED_LoadTexture:
 	return 1;
 }
 
-int PackTIM(
-	const TIM_PIX_FMT ePixFmt,
-	const char* pszTextureFileName,
-	const char* pszPaletteFileName,
-	const char* pszOutputFileName)
+int PackTIM(const TIM_ARGS* psTIMArgs)
 {
 	// TODO: SetHeader?
 	TIM_FILE sFile = {
@@ -319,8 +319,8 @@ int PackTIM(
 			.ui32ID = TIM_FILE_HEADER_ID,
 			.sFlags =
 			{
-				.uMode = ePixFmt,
-				.uClut = TIM_PIX_FMT_HAS_CLUT(ePixFmt)
+				.uMode = psTIMArgs->ePixFmt,
+				.uClut = TIM_PIX_FMT_HAS_CLUT(psTIMArgs->ePixFmt)
 			}
 		}
 	};
@@ -331,26 +331,41 @@ int PackTIM(
 		"palette: %s\n"
 		"output file: %s\n",
 		// TODO: static array of string
-		ePixFmt == TIM_PIX_FMT_4BIT_CLUT ? "4bpp" : "8bpp",
-		pszTextureFileName,
-		pszPaletteFileName,
-		pszOutputFileName
+		psTIMArgs->ePixFmt == TIM_PIX_FMT_4BIT_CLUT ? "4bpp" : "8bpp",
+		psTIMArgs->pszTextureFileName,
+		psTIMArgs->pszPaletteFileName,
+		psTIMArgs->pszOutputFileName
 	);
 
-	if (LoadPalette(pszPaletteFileName, ePixFmt, &sFile.sCLUTHeader, &sFile.psCLUTData) != 0)
+	if (LoadPalette(
+			psTIMArgs->pszPaletteFileName,
+			psTIMArgs->ePixFmt,
+			psTIMArgs->ui16PaletteCoordX,
+			psTIMArgs->ui16PaletteCoordY,
+			&sFile.sCLUTHeader,
+			&sFile.psCLUTData
+		) != 0)
 	{
 		printf("failed to load palette\n");
 		return 1;
 	}
 
-	if (LoadTexture(pszTextureFileName, ePixFmt, sFile.psCLUTData, &sFile.sPixelHeader, &sFile.pui8PixelData) != 0)
+	if (LoadTexture(
+			psTIMArgs->pszTextureFileName,
+			psTIMArgs->ePixFmt,
+			psTIMArgs->ui16TextureCoordX,
+			psTIMArgs->ui16TextureCoordY,
+			sFile.psCLUTData,
+			&sFile.sPixelHeader,
+			&sFile.pui8PixelData
+		) != 0)
 	{
 		printf("failed to load Texture\n");
 		DestroyTIM(&sFile);
 		return 1;
 	}
 
-	if (WriteTIM(pszOutputFileName, &sFile) != 0)
+	if (WriteTIM(psTIMArgs->pszOutputFileName, &sFile) != 0)
 	{
 		printf("failed to write TIM\n");
 		DestroyTIM(&sFile);
