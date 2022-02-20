@@ -2,9 +2,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
+
+#include <argp.h>
 
 #include "tim_defs.h"
-#include "timpack.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -14,7 +16,9 @@
 static const uint16_t aui16PixFmtNumColours[TIM_PIX_FMT_COUNT] =
 {
 	16, // TIM_PIX_FMT_4BIT_CLUT
-	256 // TIM_PIX_FMT_8BIT_CLUT
+	256, // TIM_PIX_FMT_8BIT_CLUT
+	0, // 	TIM_PIX_FMT_15BIT_DIRECT (unsupported)
+	0 // TIM_PIX_FMT_24BIT_DIRECT (unsupported)
 };
 
 static void RGB8ToTIMPix(
@@ -37,6 +41,9 @@ static int LoadPalette(
 	TIM_BLOCK_HEADER* psCLUTHeader,
 	TIM_PIX** ppsCLUTData)
 {
+	assert(psCLUTHeader != NULL);
+	assert(ppsCLUTData != NULL);
+
 	// Data from the loaded palette image
 	int iWidth = 0;
 	int iHeight = 0;
@@ -142,17 +149,6 @@ static int LoadPalette(
 				pui8PixelData[1],
 				pui8PixelData[2]
 			);
-
-			// printf(
-			// 	"palette[%u]: (%u, %u, %u) -> (%u, %u, %u)\n",
-			// 	i,
-			// 	pui8PixelData[0],
-			// 	pui8PixelData[1],
-			// 	pui8PixelData[2],
-			// 	psCLUTData[i].r,
-			// 	psCLUTData[i].g,
-			// 	psCLUTData[i].b
-			// );
 		}
 
 		*ppsCLUTData = psCLUTData;
@@ -185,6 +181,10 @@ static int LoadTexture(
 	TIM_BLOCK_HEADER* psPixelHeader,
 	uint8_t** ppui8PixelData)
 {
+	assert(psPaletteColours != NULL);
+	assert(psPixelHeader != NULL);
+	assert(ppui8PixelData != NULL);
+
 	// The number of pixels present in the loaded image
 	uint32_t ui32NumColours = 0;
 	uint32_t ui32AllocationSize = 0;
@@ -291,17 +291,9 @@ static int LoadTexture(
 							(j << 4) :
 							j
 						);
-
-						// printf(
-						// 	"pixel[%u] = %u (%02X)\n",
-						// 	(i / 2),
-						// 	pui8Indices[i / 2],
-						// 	pui8Indices[i / 2]
-						// );
 					}
 					else
 					{
-						// printf("pixel[%u] = %u (%02X)\n", i, j, j);
 						pui8Indices[i] = j;
 					}
 
@@ -327,6 +319,21 @@ FAILED_LoadTexture:
 	stbi_image_free(pui8Image);
 	return 1;
 }
+
+typedef struct _TIM_ARGS
+{
+	TIM_PIX_FMT ePixFmt;
+
+	char* pszTextureFileName;
+	uint16_t ui16TextureCoordX;
+	uint16_t ui16TextureCoordY;
+
+	char* pszPaletteFileName;
+	uint16_t ui16PaletteCoordX;
+	uint16_t ui16PaletteCoordY;
+
+	char* pszOutputFileName;
+} TIM_ARGS;
 
 int PackTIM(const TIM_ARGS* psTIMArgs)
 {
@@ -381,4 +388,134 @@ int PackTIM(const TIM_ARGS* psTIMArgs)
 	DestroyTIM(&sFile);
 
 	return 0;
+}
+
+const char *argp_program_version = "timpack 1.0";
+const char *argp_program_bug_address = "<jw0z96@github>";
+static char szDoc[] = "timpack - pack texture + palette data into the Sony Playstation's TIM file format";
+static char szArgDoc[] = "OUTPUT_FILE";
+
+static struct argp_option sOptions[] = {
+	{ "bpp",		'b',	"<bits>",			0,	"Bits per pixel (4 for 16 colour, 8 for 256 colour)" },
+	{ "texture",	't',	"FILE",				0,	"Texture file" },
+	{ "texture-x",	'x',	"<X coordinate>",	0,	"Texture destination X coordinate in VRAM" },
+	{ "texture-y",	'y',	"<Y coordinate>",	0,	"Texture destination Y coordinate in VRAM" },
+	{ "palette",	'p',	"FILE",				0,	"Palette file" },
+	{ "palette-x",	'i',	"<X coordinate>",	0,	"Palette destination X coordinate in VRAM" },
+	{ "palette-y",	'j',	"<Y coordinate>",	0,	"Palette destination Y coordinate in VRAM" },
+	{ 0 }
+};
+
+static error_t ParseOpts(int key, char *arg, struct argp_state *state)
+{
+	TIM_ARGS *psArgs = state->input;
+
+	switch (key)
+	{
+		case 'b':
+		{
+			if ((*arg != '4') && (*arg != '8'))
+			{
+				printf("expected -b/--bpp arg to be '4' or '8'\n");
+				argp_usage(state);
+			}
+
+			psArgs->ePixFmt = (
+				*arg == '4' ?
+				TIM_PIX_FMT_4BIT_CLUT :
+				TIM_PIX_FMT_8BIT_CLUT
+			);
+			break;
+		}
+
+		case 't': psArgs->pszTextureFileName = arg; break;
+		case 'x': psArgs->ui16TextureCoordX = strtol(arg, NULL, 10); break;
+		case 'y': psArgs->ui16TextureCoordY = strtol(arg, NULL, 10); break;
+		case 'p': psArgs->pszPaletteFileName = arg; break;
+		case 'i': psArgs->ui16PaletteCoordX = strtol(arg, NULL, 10); break;
+		case 'j': psArgs->ui16PaletteCoordY = strtol(arg, NULL, 10); break;
+
+		case ARGP_KEY_ARG:
+		{
+			if (state->arg_num >= 1) // Too many args
+			{
+				argp_usage(state);
+			}
+
+			psArgs->pszOutputFileName = arg;
+			break;
+		}
+
+		case ARGP_KEY_END:
+		{
+			if (state->arg_num < 1) // Not enough args
+			{
+				argp_usage(state);
+			}
+			break;
+		}
+
+		default:
+			return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+static struct argp sArgp = { sOptions, ParseOpts, szArgDoc, szDoc };
+
+int main (int argc, char * argv[])
+{
+	// Default args
+	TIM_ARGS sArgs;
+	sArgs.ePixFmt = TIM_PIX_FMT_4BIT_CLUT;
+	sArgs.pszTextureFileName = NULL;
+	sArgs.ui16TextureCoordX = 0;
+	sArgs.ui16TextureCoordY = 0;
+	sArgs.pszPaletteFileName = NULL;
+	sArgs.ui16PaletteCoordX = 0;
+	sArgs.ui16PaletteCoordY = 0;
+	sArgs.pszOutputFileName = NULL;
+
+	argp_parse(&sArgp, argc, argv, 0, 0, &sArgs);
+
+	// TODO: implement direct colour formats
+	if (sArgs.ePixFmt > TIM_PIX_FMT_8BIT_CLUT)
+	{
+		printf("15/24 bit direct colour formats unsupported\n");
+		return 1;
+	}
+
+	// Check if any files are null
+	if (sArgs.pszTextureFileName == NULL)
+	{
+		printf("Texture File Name Invalid\n");
+		return 1;
+	}
+
+	if (sArgs.pszPaletteFileName == NULL)
+	{
+		printf("Palette File Name Invalid\n");
+		return 1;
+	}
+
+#define RETURN_IF_INVALID_COORD(coord, dim, fmt) do { if (coord >= dim) { \
+		printf("%s coordinate must be in the range [0, %u], (%hu provided)\n", fmt, (dim - 1), coord); \
+		return 1; \
+	} } while (0)
+
+	RETURN_IF_INVALID_COORD(sArgs.ui16TextureCoordX, PSX_VRAM_WIDTH, "Texture X");
+	RETURN_IF_INVALID_COORD(sArgs.ui16TextureCoordY, PSX_VRAM_HEIGHT, "Texture Y");
+	RETURN_IF_INVALID_COORD(sArgs.ui16PaletteCoordX, PSX_VRAM_WIDTH, "Palette X");
+	RETURN_IF_INVALID_COORD(sArgs.ui16PaletteCoordY, PSX_VRAM_HEIGHT, "Palette Y");
+
+#undef RETURN_IF_INVALID_COORD
+
+	if (sArgs.pszOutputFileName == NULL)
+	{
+		printf("Output File Name Invalid\n");
+		return 1;
+	}
+
+	return PackTIM(&sArgs);
 }

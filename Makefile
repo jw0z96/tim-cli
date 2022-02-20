@@ -1,6 +1,5 @@
-timpack: main.c timpack.c tim_io_utils.c
+timpack: timpack.c tim_io_utils.c
 	gcc -o timpack \
-		main.c \
 		timpack.c \
 		tim_io_utils.c \
 		-I/opt/homebrew/opt/argp-standalone/include \
