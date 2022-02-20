@@ -4,7 +4,7 @@
 
 #include "tim_defs.h"
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 typedef struct _R8G8B8A8
 {
