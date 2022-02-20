@@ -101,6 +101,13 @@ int main (int argc, char * argv[])
 
 	argp_parse(&sArgp, argc, argv, 0, 0, &sArgs);
 
+	// TODO: implement direct colour formats
+	if (sArgs.ePixFmt > TIM_PIX_FMT_8BIT_CLUT)
+	{
+		printf("15/24 bit direct colour formats unsupported\n");
+		return 1;
+	}
+
 	// Check if any files are null
 	if (sArgs.pszTextureFileName == NULL)
 	{

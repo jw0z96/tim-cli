@@ -50,6 +50,10 @@ typedef struct _TIM_PIX
 	uint16_t r: 5, g: 5, b: 5, stp: 1;
 } TIM_PIX;
 
+#define U5_MASK (0x1F) // The lower 5 bits
+#define CONV_U8_TO_U5(x) (U5_MASK & (uint8_t)((float)x * (31.0f / 255.0f)))
+#define CONV_U5_TO_U8(x) ((uint8_t)((U5_MASK & x) * (255.0f / 31.0f)))
+
 typedef struct _TIM_FILE
 {
 	TIM_FILE_HEADER sFileHeader;
@@ -63,12 +67,12 @@ typedef struct _TIM_FILE
 	uint8_t* pui8PixelData;
 } TIM_FILE;
 
+void PrintTIM(const char* pszName, TIM_FILE* psFile);
+
 int WriteTIM(const char* pszOutputFileName, const TIM_FILE* psFile);
 
 int ReadTIM(const char* pszInputFileName, TIM_FILE* psFile);
 
 void DestroyTIM(TIM_FILE* psFile);
-
-// int DecodeTIMPixelData(const TIM_FILE* psFile, uint32_t** ppui32PixelData);
 
 #endif // TIMDEFS_H

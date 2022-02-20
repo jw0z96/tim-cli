@@ -11,16 +11,11 @@
 
 #define ALIGN_UP(x, y) (((x % y) != 0) ? (x + y - (x % y)) : x)
 
-// todo: in it's own header, share with sdl viewer app
 static const uint16_t aui16PixFmtNumColours[TIM_PIX_FMT_COUNT] =
 {
 	16, // TIM_PIX_FMT_4BIT_CLUT
 	256 // TIM_PIX_FMT_8BIT_CLUT
 };
-
-// todo: in it's own header, share with sdl viewer app
-#define U5_MASK (0x1F) // The lower 5 bits
-#define CONV_U8_TO_U5(x) (U5_MASK & (uint8_t)((float)x * (31.0f / 255.0f)))
 
 static void RGB8ToTIMPix(
 	TIM_PIX* psPixel,
@@ -90,7 +85,18 @@ static int LoadPalette(
 	);
 
 	// Set the destination coordinates for the CLUT data within VRAM
-	// TODO: Check this against the width/height to make sure we don't overflow
+	if ((ui16FBCoordX + psCLUTHeader->ui16Width) > PSX_VRAM_WIDTH)
+	{
+		printf("Palette Width + Destination FB X coordinate overflows PSX VRAM\n");
+		goto FAILED_LoadPalette;
+	}
+
+	if ((ui16FBCoordY + psCLUTHeader->ui16Height) > PSX_VRAM_HEIGHT)
+	{
+		printf("Palette Height + Destination FB Y coordinate overflows PSX VRAM\n");
+		goto FAILED_LoadPalette;
+	}
+
 	psCLUTHeader->ui16FBCoordX = ui16FBCoordX;
 	psCLUTHeader->ui16FBCoordY = ui16FBCoordY;
 
@@ -240,7 +246,18 @@ static int LoadTexture(
 	);
 
 	// Set the destination coordinates for the pixel data within VRAM
-	// TODO: Check this against the width/height to make sure we don't overflow
+	if ((ui16FBCoordX + iWidth) > PSX_VRAM_WIDTH)
+	{
+		printf("Texture Width + Destination FB X coordinate overflows PSX VRAM\n");
+		goto FAILED_LoadTexture;
+	}
+
+	if ((ui16FBCoordY + iHeight) > PSX_VRAM_HEIGHT)
+	{
+		printf("Texture Height + Destination FB Y coordinate overflows PSX VRAM\n");
+		goto FAILED_LoadTexture;
+	}
+
 	psPixelHeader->ui16FBCoordX = ui16FBCoordX;
 	psPixelHeader->ui16FBCoordY = ui16FBCoordY;
 
@@ -313,7 +330,6 @@ FAILED_LoadTexture:
 
 int PackTIM(const TIM_ARGS* psTIMArgs)
 {
-	// TODO: SetHeader?
 	TIM_FILE sFile = {
 		.sFileHeader = {
 			.ui32ID = TIM_FILE_HEADER_ID,
@@ -324,18 +340,6 @@ int PackTIM(const TIM_ARGS* psTIMArgs)
 			}
 		}
 	};
-
-	printf(
-		"bpp mode: %s\n"
-		"texture: %s\n"
-		"palette: %s\n"
-		"output file: %s\n",
-		// TODO: static array of string
-		psTIMArgs->ePixFmt == TIM_PIX_FMT_4BIT_CLUT ? "4bpp" : "8bpp",
-		psTIMArgs->pszTextureFileName,
-		psTIMArgs->pszPaletteFileName,
-		psTIMArgs->pszOutputFileName
-	);
 
 	if (LoadPalette(
 			psTIMArgs->pszPaletteFileName,
@@ -364,6 +368,8 @@ int PackTIM(const TIM_ARGS* psTIMArgs)
 		DestroyTIM(&sFile);
 		return 1;
 	}
+
+	PrintTIM(psTIMArgs->pszOutputFileName, &sFile);
 
 	if (WriteTIM(psTIMArgs->pszOutputFileName, &sFile) != 0)
 	{

@@ -1,15 +1,52 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "tim_defs.h"
+
+void PrintTIM(const char* pszName, TIM_FILE* psFile)
+{
+	static const char* apszTIMFmtStr[TIM_PIX_FMT_COUNT] = {
+		"4 BIT CLUT",
+		"8 BIT CLUT",
+		"1 5BIT DIRECT",
+		"2 4BIT DIRECT",
+	};
+
+	assert(psFile != NULL);
+
+	printf(
+		"TIM File: %s\n"
+		"\tPalette Format: %s\n"
+		"\tPalette Dimensions: %hu, %hu\n"
+		"\tPalette FB Coord: %hu, %hu\n"
+		"\tTexture Dimensions: %hu, %hu\n"
+		"\tTexture FB Coord: %hu, %hu\n",
+		pszName,
+		apszTIMFmtStr[psFile->sFileHeader.sFlags.uMode],
+		psFile->sCLUTHeader.ui16Width,
+		psFile->sCLUTHeader.ui16Height,
+		psFile->sCLUTHeader.ui16FBCoordX,
+		psFile->sCLUTHeader.ui16FBCoordY,
+		psFile->sPixelHeader.ui16Width,
+		psFile->sPixelHeader.ui16Height,
+		psFile->sPixelHeader.ui16FBCoordX,
+		psFile->sPixelHeader.ui16FBCoordY
+	);
+}
 
 int WriteTIM(
 	const char* pszOutputFileName,
 	const TIM_FILE* psFile)
 {
 	FILE *fFilePtr = fopen(pszOutputFileName, "wb");
+	if (fFilePtr == NULL)
+	{
+		printf("could not open %s for writing\n", pszOutputFileName);
+		return 1;
+	}
 
-	// TODO: check psFile
+	assert(psFile != NULL);
 
 	// Write header
 	fwrite(&psFile->sFileHeader, sizeof(TIM_FILE_HEADER), 1, fFilePtr);
@@ -44,11 +81,11 @@ int ReadTIM(
 	FILE *fFilePtr = fopen(pszInputFileName, "r");
 	if (fFilePtr == NULL)
 	{
-		printf("invalid file\n");
+		printf("could not open %s for reasing\n", pszInputFileName);
 		return 1;
 	}
 
-	// TODO: check psFile
+	assert(psFile != NULL);
 
 	printf("reading %s\n", pszInputFileName);
 

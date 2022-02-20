@@ -1,24 +1,23 @@
 #include <stdio.h>
+#include <stdbool.h>
+#include <assert.h>
 
 #include "tim_defs.h"
 
 #include <SDL2/SDL.h>
-
-#include <stdbool.h>
 
 typedef struct _R8G8B8A8
 {
 	uint32_t uRed: 8, uGreen: 8, uBlue: 8, uAlpha: 8;
 } R8G8B8A8;
 
-#define U5TOU8(x) ((uint8_t)(x * (255.0f / 32.0f)))
 
 static R8G8B8A8 TIMPixToRGBA8(const TIM_PIX* psPix)
 {
 	R8G8B8A8 sPix = {
-		.uRed = U5TOU8(psPix->r),
-		.uGreen = U5TOU8(psPix->g),
-		.uBlue = U5TOU8(psPix->b),
+		.uRed = CONV_U5_TO_U8(psPix->r),
+		.uGreen = CONV_U5_TO_U8(psPix->g),
+		.uBlue = CONV_U5_TO_U8(psPix->b),
 		.uAlpha = 0xFF
 	};
 
@@ -30,9 +29,9 @@ static int DecodeTIMPixelDataWithPalette(
 	const uint32_t ui32PaletteIndex,
 	R8G8B8A8* pui32PixelData)
 {
-	// TODO: check file
-	// TODO: check ui32PaletteIndex < psFile->sCLUTHeader.ui16Height
-	// TODO: check pixel data
+	assert(psFile != NULL);
+	assert(ui32PaletteIndex < psFile->sCLUTHeader.ui16Height);
+	assert(pui32PixelData != NULL);
 
 	const uint32_t ui32NumPixels = (
 		psFile->sPixelHeader.ui16Width * psFile->sPixelHeader.ui16Height
@@ -121,32 +120,6 @@ static int RenderTIM(const TIM_FILE* psFile)
 	SDL_BlitSurface(pTIMSurface, NULL, pScreenSurface, NULL);
 	SDL_UpdateWindowSurface(pWindow);
 
-	// TODO: stick in header
-	static const char* apszTIMFmtStr[] = {
-		"4 BIT CLUT",
-		"8 BIT CLUT",
-		"1 5BIT DIRECT",
-		"2 4BIT DIRECT",
-	};
-
-	printf(
-		"Rendering TIM File:\n"
-		"\tPalette Format: %s\n"
-		"\tPalette Dimensions: %hu, %hu\n"
-		"\tPalette FB Coord: %hu, %hu\n"
-		"\tTexture Dimensions: %hu, %hu\n"
-		"\tTexture FB Coord: %hu, %hu\n",
-		apszTIMFmtStr[psFile->sFileHeader.sFlags.uMode],
-		psFile->sCLUTHeader.ui16Width,
-		psFile->sCLUTHeader.ui16Height,
-		psFile->sCLUTHeader.ui16FBCoordX,
-		psFile->sCLUTHeader.ui16FBCoordY,
-		psFile->sPixelHeader.ui16Width,
-		psFile->sPixelHeader.ui16Height,
-		psFile->sPixelHeader.ui16FBCoordX,
-		psFile->sPixelHeader.ui16FBCoordY
-	);
-
 	{
 		SDL_Event sEvent;
 		bool bQuit = false;
@@ -214,6 +187,8 @@ int main (int argc, char * argv[])
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		goto FAILED_SDL_Init;
 	}
+
+	PrintTIM(argv[1], &sFile);
 
 	if (RenderTIM(&sFile) != 0)
 	{
