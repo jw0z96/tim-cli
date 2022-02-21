@@ -33,9 +33,25 @@ static int DecodeTIMPixelDataWithPalette(
 	assert(ui32PaletteIndex < psFile->sCLUTHeader.ui16Height);
 	assert(pui32PixelData != NULL);
 
-	const uint32_t ui32NumPixels = (
+	uint32_t ui32NumPixels = (
 		psFile->sPixelHeader.ui16Width * psFile->sPixelHeader.ui16Height
 	);
+
+	switch (psFile->sFileHeader.sFlags.uMode)
+	{
+		case TIM_PIX_FMT_4BIT_CLUT:
+		{
+			ui32NumPixels *= 4;
+			break;
+
+		}
+		case TIM_PIX_FMT_8BIT_CLUT:
+		{
+			ui32NumPixels *= 2;
+			break;
+		}
+		default: break;
+	}
 
 	uint8_t ui8ColourIndex;
 	const uint32_t ui32PaletteOffset = ui32PaletteIndex * psFile->sCLUTHeader.ui16Width;
@@ -69,11 +85,29 @@ static int DecodeTIMPixelDataWithPalette(
 
 static int RenderTIM(const TIM_FILE* psFile)
 {
+	uint16_t ui16ActualWidth = psFile->sPixelHeader.ui16Width;
+
+	switch (psFile->sFileHeader.sFlags.uMode)
+	{
+		case TIM_PIX_FMT_4BIT_CLUT:
+		{
+			ui16ActualWidth *= 4;
+			break;
+
+		}
+		case TIM_PIX_FMT_8BIT_CLUT:
+		{
+			ui16ActualWidth *= 2;
+			break;
+		}
+		default: break;
+	}
+
 	SDL_Window* pWindow = SDL_CreateWindow(
 		"timview",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		psFile->sPixelHeader.ui16Width,
+		ui16ActualWidth,
 		psFile->sPixelHeader.ui16Height,
 		SDL_WINDOW_SHOWN
 	);
@@ -93,7 +127,7 @@ static int RenderTIM(const TIM_FILE* psFile)
 
 	SDL_Surface* pTIMSurface = SDL_CreateRGBSurface(
 		0,
-		psFile->sPixelHeader.ui16Width,
+		ui16ActualWidth,
 		psFile->sPixelHeader.ui16Height,
 		32,
 		// component masks

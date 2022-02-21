@@ -9,8 +9,8 @@ void PrintTIM(const char* pszName, TIM_FILE* psFile)
 	static const char* apszTIMFmtStr[TIM_PIX_FMT_COUNT] = {
 		"4 BIT CLUT",
 		"8 BIT CLUT",
-		"1 5BIT DIRECT",
-		"2 4BIT DIRECT",
+		"15BIT DIRECT",
+		"24BIT DIRECT",
 	};
 
 	assert(psFile != NULL);

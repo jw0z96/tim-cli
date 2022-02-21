@@ -264,6 +264,23 @@ static int LoadTexture(
 	psPixelHeader->ui16Width = iWidth;
 	psPixelHeader->ui16Height = iHeight;
 
+	// For CLUT modes, the written width is divided according to the mode
+	switch (ePixFmt)
+	{
+		case TIM_PIX_FMT_4BIT_CLUT:
+		{
+			psPixelHeader->ui16Width /= 4;
+			break;
+
+		}
+		case TIM_PIX_FMT_8BIT_CLUT:
+		{
+			psPixelHeader->ui16Width /= 2;
+			break;
+		}
+		default: break;
+	}
+
 	// Convert each pixel to 15 bit, find it's index in the palette
 	{
 		TIM_PIX sTempCol = {0};
