@@ -246,15 +246,23 @@ static int LoadTexture(
 	);
 
 	// Set the destination coordinates for the pixel data within VRAM
-	if ((ui16FBCoordX + iWidth) > PSX_VRAM_WIDTH)
+	if ((ui16FBCoordX + (iWidth / ((ePixFmt == TIM_PIX_FMT_4BIT_CLUT) ? 4 : 2))) > PSX_VRAM_WIDTH)
 	{
-		printf("Texture Width + Destination FB X coordinate overflows PSX VRAM\n");
+		printf(
+			"Texture Width + Destination FB X coordinate overflows PSX VRAM (%u + %u)\n",
+			ui16FBCoordX,
+			iWidth
+		);
 		goto FAILED_LoadTexture;
 	}
 
 	if ((ui16FBCoordY + iHeight) > PSX_VRAM_HEIGHT)
 	{
-		printf("Texture Height + Destination FB Y coordinate overflows PSX VRAM\n");
+		printf(
+			"Texture Height + Destination FB Y coordinate overflows PSX VRAM (%u + %u)\n",
+			ui16FBCoordY,
+			iHeight
+		);
 		goto FAILED_LoadTexture;
 	}
 
