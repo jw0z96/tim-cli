@@ -43,8 +43,9 @@ timpack --bpp=4 \ # 4 for 16 colour, 8 for 256 colour
 ```
 ## TODO
 
-- support semitransparent mode, currently STP is forced 1
+- support handling different semitransparency modes. alpha channel support has been added, where stp is on only if the opacity 255.
 - support 15 and 24 bit direct colour modes
+- support passing an indexed texture directly, to skip the clut matching step
 
 # timview
 
@@ -58,7 +59,9 @@ timview <TIM file>
 
 If multiple palettes are present, pressing any key will cycle through each CLUT.
 
+Pressing any key will also toggle clearing the background between white and black, to help view textures with alpha.
+
 ## TODO
 
-- support semitransparent mode, currently STP is forced 1
+- find a better way of viewing textures with alpha
 - support 15 and 24 bit direct colour modes

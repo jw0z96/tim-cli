@@ -18,7 +18,7 @@ static R8G8B8A8 TIMPixToRGBA8(const TIM_PIX* psPix)
 		.uRed = CONV_U5_TO_U8(psPix->r),
 		.uGreen = CONV_U5_TO_U8(psPix->g),
 		.uBlue = CONV_U5_TO_U8(psPix->b),
-		.uAlpha = 0xFF
+		.uAlpha = ((psPix->stp == 0x1) ? 0xff : 0x00)
 	};
 
 	return sPix;
@@ -157,6 +157,9 @@ static int RenderTIM(const TIM_FILE* psFile)
 	{
 		SDL_Event sEvent;
 		bool bQuit = false;
+		// Too help view textures with alpha, we can toggle a surface clear
+		// TODO: actually set this on a key
+		bool bClear = false;
 		while (!bQuit)
 		{
 			while (SDL_PollEvent(&sEvent))
@@ -177,6 +180,9 @@ static int RenderTIM(const TIM_FILE* psFile)
 						printf("Failed to get pixel data from TIM\n");
 						goto FAILED_DecodePalette;
 					}
+
+					SDL_FillRect(pScreenSurface, NULL, (bClear ? 0xffffffff : 0xff000000));
+					bClear = !bClear;
 
 					SDL_BlitSurface(pTIMSurface, NULL, pScreenSurface, NULL);
 					SDL_UpdateWindowSurface(pWindow);

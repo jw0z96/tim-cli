@@ -25,12 +25,13 @@ static void RGB8ToTIMPix(
 	TIM_PIX* psPixel,
 	const uint8_t ui8Red,
 	const uint8_t ui8Green,
-	const uint8_t ui8Blue)
+	const uint8_t ui8Blue,
+	bool bSTP)
 {
 	psPixel->r = CONV_U8_TO_U5(ui8Red);
 	psPixel->g = CONV_U8_TO_U5(ui8Green);
 	psPixel->b = CONV_U8_TO_U5(ui8Blue);
-	psPixel->stp = 0x1;
+	psPixel->stp = (bSTP ? 0x1 : 0x0);
 }
 
 static int LoadPalette(
@@ -143,12 +144,22 @@ static int LoadPalette(
 
 		for (uint32_t i = 0; i < ui32NumColours; ++i, pui8PixelData += iNumChannels)
 		{
-			RGB8ToTIMPix(
-				&psCLUTData[i],
-				pui8PixelData[0],
-				pui8PixelData[1],
-				pui8PixelData[2]
-			);
+			// If we have alpha and it's non-solid, set full transparent
+			// TODO: this needs to be configurable
+			if ((iNumChannels > 3) && (pui8PixelData[3] != 0xff))
+			{
+				RGB8ToTIMPix(&psCLUTData[i], 0, 0, 0, false);
+			}
+			else
+			{
+				RGB8ToTIMPix(
+					&psCLUTData[i],
+					pui8PixelData[0],
+					pui8PixelData[1],
+					pui8PixelData[2],
+					true
+				);
+			}
 		}
 
 		*ppsCLUTData = psCLUTData;
@@ -290,6 +301,7 @@ static int LoadTexture(
 	}
 
 	// Convert each pixel to 15 bit, find it's index in the palette
+	// TODO: can we pass a directly indexed image to skip this search?
 	{
 		TIM_PIX sTempCol = {0};
 		const uint8_t* pui8PixelData = pui8Image;
@@ -297,12 +309,22 @@ static int LoadTexture(
 		{
 			bool bFoundColour = false;
 
-			RGB8ToTIMPix(
-				&sTempCol,
-				pui8PixelData[0],
-				pui8PixelData[1],
-				pui8PixelData[2]
-			);
+			// If we have alpha and it's non-solid, set full transparent
+			// TODO: this needs to be configurable
+			if ((iNumChannels > 3) && (pui8PixelData[3] != 0xff))
+			{
+				RGB8ToTIMPix(&sTempCol, 0, 0, 0, false);
+			}
+			else
+			{
+				RGB8ToTIMPix(
+					&sTempCol,
+					pui8PixelData[0],
+					pui8PixelData[1],
+					pui8PixelData[2],
+					true
+				);
+			}
 
 			for (uint16_t j = 0; j < aui16PixFmtNumColours[ePixFmt]; ++j)
 			{
